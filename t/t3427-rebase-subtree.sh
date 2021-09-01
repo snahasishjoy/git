@@ -69,25 +69,6 @@ test_expect_success 'setup' '
 	git commit -m "Empty commit" --allow-empty
 '
 
-# FAILURE: Does not preserve topic_4.
-test_expect_failure REBASE_P 'Rebase -Xsubtree --preserve-merges --onto commit' '
-	reset_rebase &&
-	git checkout -b rebase-preserve-merges to-rebase &&
-	git rebase -Xsubtree=files_subtree --preserve-merges --onto files-main main &&
-	verbose test "$(commit_message HEAD~)" = "topic_4" &&
-	verbose test "$(commit_message HEAD)" = "files_subtree/topic_5"
-'
-
-# FAILURE: Does not preserve topic_4.
-test_expect_failure REBASE_P 'Rebase -Xsubtree --keep-empty --preserve-merges --onto commit' '
-	reset_rebase &&
-	git checkout -b rebase-keep-empty to-rebase &&
-	git rebase -Xsubtree=files_subtree --keep-empty --preserve-merges --onto files-main main &&
-	verbose test "$(commit_message HEAD~2)" = "topic_4" &&
-	verbose test "$(commit_message HEAD~)" = "files_subtree/topic_5" &&
-	verbose test "$(commit_message HEAD)" = "Empty commit"
-'
-
 test_expect_success 'Rebase -Xsubtree --empty=ask --onto commit' '
 	reset_rebase &&
 	git checkout -b rebase-onto to-rebase &&
