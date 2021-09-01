@@ -187,25 +187,57 @@ test_pause () {
 # Wrap git with a debugger. Adding this to a command can make it easier
 # to understand what is going on in a failing test.
 #
+# Usage: debug [options] [git command]
+#   -d <debugger>
+#   --debugger=<debugger>
+#	Use <debugger> instead of GDB
+#   -t
+#	Use your original TERM instead of test-lib.sh's "dumb".
+#	This usually restores color output in the debugger.
+#	WARNING: this can break test reproducibility.
+#   -h
+#	Use your original HOME instead of test-lib.sh's "$TRASH_DIRECTORY".
+#	This allows your debugger to find its config file in your home.
+#	WARNING: this can break test reproducibility.
+#	CAUTION: this can overwrite files in your HOME.
+#   -a
+#	Shortcut for -t -h
+#
 # Examples:
 #     debug git checkout master
 #     debug --debugger=nemiver git $ARGS
 #     debug -d "valgrind --tool=memcheck --track-origins=yes" git $ARGS
 debug () {
-	case "$1" in
-	-d)
-		GIT_DEBUGGER="$2" &&
-		shift 2
-		;;
-	--debugger=*)
-		GIT_DEBUGGER="${1#*=}" &&
-		shift 1
-		;;
-	*)
-		GIT_DEBUGGER=1
-		;;
-	esac &&
-	GIT_DEBUGGER="${GIT_DEBUGGER}" "$@" <&6 >&5 2>&7
+	GIT_DEBUGGER=1 &&
+	DEBUG_TERM=$TERM &&
+	DEBUG_HOME=$HOME &&
+	while test $# != 0
+	do
+		case "$1" in
+		-t)
+			DEBUG_TERM="$USER_TERM"
+			;;
+		-h)
+			DEBUG_HOME="$USER_HOME"
+			;;
+		-a)
+			DEBUG_TERM="$USER_TERM"
+			DEBUG_HOME="$USER_HOME"
+			;;
+		-d)
+			GIT_DEBUGGER="$2" &&
+			shift
+			;;
+		--debugger=*)
+			GIT_DEBUGGER="${1#*=}"
+			;;
+		*)
+			break
+			;;
+		esac
+		shift
+	done &&
+	TERM="$DEBUG_TERM" HOME="$DEBUG_HOME" GIT_DEBUGGER="${GIT_DEBUGGER}" "$@" <&6 >&5 2>&7
 }
 
 # Usage: test_commit [options] <message> [<file> [<contents> [<tag>]]]
