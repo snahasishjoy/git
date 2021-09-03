@@ -63,6 +63,13 @@ void strvec_pushl(struct strvec *, ...);
 void strvec_pushv(struct strvec *, const char **);
 
 /**
+ * Push the contents of another "struct strvec *" onto the end of the
+ * array. Like strvec_pushv(), this is a convenience wrapper that
+ * calls strvec_push() in a loop.
+ */
+void strvec_pushvec(struct strvec *, const struct strvec *);
+
+/**
  * Remove the final element from the array. If there are no
  * elements in the array, do nothing.
  */

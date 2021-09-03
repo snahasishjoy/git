@@ -1641,7 +1641,6 @@ int fetch_populated_submodules(struct repository *r,
 			       int default_option,
 			       int quiet, int max_parallel_jobs)
 {
-	int i;
 	struct submodule_parallel_fetch spf = SPF_INIT;
 
 	spf.r = r;
@@ -1657,8 +1656,7 @@ int fetch_populated_submodules(struct repository *r,
 		die(_("index file corrupt"));
 
 	strvec_push(&spf.args, "fetch");
-	for (i = 0; i < options->nr; i++)
-		strvec_push(&spf.args, options->v[i]);
+	strvec_pushvec(&spf.args, options);
 	strvec_push(&spf.args, "--recurse-submodules-default");
 	/* default value, "--submodule-prefix" and its value are added later */
 

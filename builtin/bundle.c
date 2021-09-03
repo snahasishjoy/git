@@ -162,10 +162,15 @@ static int cmd_bundle_unbundle(int argc, const char **argv, const char *prefix) 
 	struct bundle_header header = BUNDLE_HEADER_INIT;
 	int bundle_fd = -1;
 	int ret;
+	int progress = isatty(2);
+
 	struct option options[] = {
+		OPT_BOOL(0, "progress", &progress,
+			 N_("show progress meter")),
 		OPT_END()
 	};
 	char *bundle_file;
+	struct strvec extra_args = STRVEC_INIT;
 
 	argc = parse_options_cmd_bundle(argc, argv, prefix,
 			builtin_bundle_unbundle_usage, options, &bundle_file);
@@ -177,7 +182,15 @@ static int cmd_bundle_unbundle(int argc, const char **argv, const char *prefix) 
 	}
 	if (!startup_info->have_repository)
 		die(_("Need a repository to unbundle."));
-	ret = !!unbundle(the_repository, &header, bundle_fd, 0) ||
+
+	if (progress) {
+		strvec_push(&extra_args, "-v");
+		strvec_push(&extra_args, "--progress-title");
+		strvec_push(&extra_args, _("Unbundling objects"));
+	}
+
+	ret = !!unbundle(the_repository, &header, bundle_fd, progress ?
+			 &extra_args : NULL) ||
 		list_bundle_refs(&header, argc, argv);
 	bundle_header_release(&header);
 cleanup:

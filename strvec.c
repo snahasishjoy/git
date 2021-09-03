@@ -56,6 +56,14 @@ void strvec_pushv(struct strvec *array, const char **items)
 		strvec_push(array, *items);
 }
 
+void strvec_pushvec(struct strvec *array, const struct strvec *items)
+{
+	int i;
+
+	for (i = 0; i < items->nr; i++)
+		strvec_push(array, items->v[i]);
+}
+
 void strvec_pop(struct strvec *array)
 {
 	if (!array->nr)
