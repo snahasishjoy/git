@@ -11,11 +11,13 @@
 #include "run-command.h"
 #include "ll-merge.h"
 #include "quote.h"
+#include "strbuf.h"
 
 struct ll_merge_driver;
 
 typedef int (*ll_merge_fn)(const struct ll_merge_driver *,
 			   mmbuffer_t *result,
+			   struct strbuf *warnings,
 			   const char *path,
 			   mmfile_t *orig, const char *orig_name,
 			   mmfile_t *src1, const char *name1,
@@ -58,6 +60,7 @@ static int same_mmfile(mmfile_t *a, mmfile_t *b)
  */
 static int ll_binary_merge(const struct ll_merge_driver *drv_unused,
 			   mmbuffer_t *result,
+			   struct strbuf *warnings,
 			   const char *path,
 			   mmfile_t *orig, const char *orig_name,
 			   mmfile_t *src1, const char *name1,
@@ -67,6 +70,7 @@ static int ll_binary_merge(const struct ll_merge_driver *drv_unused,
 {
 	int status;
 	mmfile_t *stolen;
+	const char *msg = "Cannot merge binary files: %s (%s vs. %s)";
 	assert(opts);
 
 	/*
@@ -98,8 +102,11 @@ static int ll_binary_merge(const struct ll_merge_driver *drv_unused,
 		} else {
 			switch (opts->variant) {
 			default:
-				warning("Cannot merge binary files: %s (%s vs. %s)",
-					path, name1, name2);
+				if (warnings) {
+					strbuf_addstr(warnings, "Warning: ");
+					strbuf_addf(warnings, msg, path, name1, name2);
+				} else
+					warning(msg, path, name1, name2);
 				/* fallthru */
 			case XDL_MERGE_FAVOR_OURS:
 				stolen = src1;
@@ -120,6 +127,7 @@ static int ll_binary_merge(const struct ll_merge_driver *drv_unused,
 
 static int ll_xdl_merge(const struct ll_merge_driver *drv_unused,
 			mmbuffer_t *result,
+			struct strbuf *warnings,
 			const char *path,
 			mmfile_t *orig, const char *orig_name,
 			mmfile_t *src1, const char *name1,
@@ -136,7 +144,7 @@ static int ll_xdl_merge(const struct ll_merge_driver *drv_unused,
 	    buffer_is_binary(orig->ptr, orig->size) ||
 	    buffer_is_binary(src1->ptr, src1->size) ||
 	    buffer_is_binary(src2->ptr, src2->size)) {
-		return ll_binary_merge(drv_unused, result,
+		return ll_binary_merge(drv_unused, result, warnings,
 				       path,
 				       orig, orig_name,
 				       src1, name1,
@@ -160,6 +168,7 @@ static int ll_xdl_merge(const struct ll_merge_driver *drv_unused,
 
 static int ll_union_merge(const struct ll_merge_driver *drv_unused,
 			  mmbuffer_t *result,
+			  struct strbuf *warnings,
 			  const char *path,
 			  mmfile_t *orig, const char *orig_name,
 			  mmfile_t *src1, const char *name1,
@@ -172,7 +181,7 @@ static int ll_union_merge(const struct ll_merge_driver *drv_unused,
 	assert(opts);
 	o = *opts;
 	o.variant = XDL_MERGE_FAVOR_UNION;
-	return ll_xdl_merge(drv_unused, result, path,
+	return ll_xdl_merge(drv_unused, result, warnings, path,
 			    orig, orig_name, src1, name1, src2, name2,
 			    &o, marker_size);
 }
@@ -202,6 +211,7 @@ static void create_temp(mmfile_t *src, char *path, size_t len)
  */
 static int ll_ext_merge(const struct ll_merge_driver *fn,
 			mmbuffer_t *result,
+			struct strbuf *warnings,
 			const char *path,
 			mmfile_t *orig, const char *orig_name,
 			mmfile_t *src1, const char *name1,
@@ -384,13 +394,14 @@ static void normalize_file(mmfile_t *mm, const char *path, struct index_state *i
 	}
 }
 
-int ll_merge(mmbuffer_t *result_buf,
-	     const char *path,
-	     mmfile_t *ancestor, const char *ancestor_label,
-	     mmfile_t *ours, const char *our_label,
-	     mmfile_t *theirs, const char *their_label,
-	     struct index_state *istate,
-	     const struct ll_merge_options *opts)
+int ll_merge_with_warnings(mmbuffer_t *result_buf,
+			   struct strbuf *warnings,
+			   const char *path,
+			   mmfile_t *ancestor, const char *ancestor_label,
+			   mmfile_t *ours, const char *our_label,
+			   mmfile_t *theirs, const char *their_label,
+			   struct index_state *istate,
+			   const struct ll_merge_options *opts)
 {
 	struct attr_check *check = load_merge_attributes();
 	static const struct ll_merge_options default_opts;
@@ -423,9 +434,25 @@ int ll_merge(mmbuffer_t *result_buf,
 	if (opts->extra_marker_size) {
 		marker_size += opts->extra_marker_size;
 	}
-	return driver->fn(driver, result_buf, path, ancestor, ancestor_label,
+	return driver->fn(driver, result_buf, warnings, path,
+			  ancestor, ancestor_label,
 			  ours, our_label, theirs, their_label,
 			  opts, marker_size);
+}
+
+int ll_merge(mmbuffer_t *result_buf,
+	     const char *path,
+	     mmfile_t *ancestor, const char *ancestor_label,
+	     mmfile_t *ours, const char *our_label,
+	     mmfile_t *theirs, const char *their_label,
+	     struct index_state *istate,
+	     const struct ll_merge_options *opts)
+{
+	return ll_merge_with_warnings(result_buf, NULL, path,
+				      ancestor, ancestor_label,
+				      ours, our_label,
+				      theirs, their_label,
+				      istate, opts);
 }
 
 int ll_merge_marker_size(struct index_state *istate, const char *path)
